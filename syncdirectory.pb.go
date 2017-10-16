@@ -12,6 +12,7 @@ It has these top-level messages:
 	MPushDirectory
 	MPullDirectory
 	MSyncDirectory
+	MDeleteDirectory
 	MPushFile
 	MPullFile
 	MDeleteFile
@@ -37,14 +38,15 @@ const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
 type ESyncMsgCode int32
 
 const (
-	ESyncMsgCode_EInitDirectory ESyncMsgCode = 0
-	ESyncMsgCode_EPushDirectory ESyncMsgCode = 1
-	ESyncMsgCode_EPullDirectory ESyncMsgCode = 2
-	ESyncMsgCode_ESyncDirectory ESyncMsgCode = 3
-	ESyncMsgCode_EPushFile      ESyncMsgCode = 4
-	ESyncMsgCode_EPullFile      ESyncMsgCode = 5
-	ESyncMsgCode_EDeleteFile    ESyncMsgCode = 6
-	ESyncMsgCode_EMoveFile      ESyncMsgCode = 7
+	ESyncMsgCode_EInitDirectory   ESyncMsgCode = 0
+	ESyncMsgCode_EPushDirectory   ESyncMsgCode = 1
+	ESyncMsgCode_EPullDirectory   ESyncMsgCode = 2
+	ESyncMsgCode_ESyncDirectory   ESyncMsgCode = 3
+	ESyncMsgCode_EDeleteDirectory ESyncMsgCode = 4
+	ESyncMsgCode_EPushFile        ESyncMsgCode = 5
+	ESyncMsgCode_EPullFile        ESyncMsgCode = 6
+	ESyncMsgCode_EDeleteFile      ESyncMsgCode = 7
+	ESyncMsgCode_EMoveFile        ESyncMsgCode = 8
 )
 
 var ESyncMsgCode_name = map[int32]string{
@@ -52,20 +54,22 @@ var ESyncMsgCode_name = map[int32]string{
 	1: "EPushDirectory",
 	2: "EPullDirectory",
 	3: "ESyncDirectory",
-	4: "EPushFile",
-	5: "EPullFile",
-	6: "EDeleteFile",
-	7: "EMoveFile",
+	4: "EDeleteDirectory",
+	5: "EPushFile",
+	6: "EPullFile",
+	7: "EDeleteFile",
+	8: "EMoveFile",
 }
 var ESyncMsgCode_value = map[string]int32{
-	"EInitDirectory": 0,
-	"EPushDirectory": 1,
-	"EPullDirectory": 2,
-	"ESyncDirectory": 3,
-	"EPushFile":      4,
-	"EPullFile":      5,
-	"EDeleteFile":    6,
-	"EMoveFile":      7,
+	"EInitDirectory":   0,
+	"EPushDirectory":   1,
+	"EPullDirectory":   2,
+	"ESyncDirectory":   3,
+	"EDeleteDirectory": 4,
+	"EPushFile":        5,
+	"EPullFile":        6,
+	"EDeleteFile":      7,
+	"EMoveFile":        8,
 }
 
 func (x ESyncMsgCode) Enum() *ESyncMsgCode {
@@ -104,13 +108,45 @@ func (m *MInitDirectory) GetRoot() string {
 }
 
 type MPushDirectory struct {
-	XXX_unrecognized []byte `json:"-"`
+	Root             *string  `protobuf:"bytes,1,opt,name=root" json:"root,omitempty"`
+	Dirname          *string  `protobuf:"bytes,2,opt,name=dirname" json:"dirname,omitempty"`
+	Subdirname       []string `protobuf:"bytes,3,rep,name=subdirname" json:"subdirname,omitempty"`
+	Subfilename      []string `protobuf:"bytes,4,rep,name=subfilename" json:"subfilename,omitempty"`
+	XXX_unrecognized []byte   `json:"-"`
 }
 
 func (m *MPushDirectory) Reset()                    { *m = MPushDirectory{} }
 func (m *MPushDirectory) String() string            { return proto.CompactTextString(m) }
 func (*MPushDirectory) ProtoMessage()               {}
 func (*MPushDirectory) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{1} }
+
+func (m *MPushDirectory) GetRoot() string {
+	if m != nil && m.Root != nil {
+		return *m.Root
+	}
+	return ""
+}
+
+func (m *MPushDirectory) GetDirname() string {
+	if m != nil && m.Dirname != nil {
+		return *m.Dirname
+	}
+	return ""
+}
+
+func (m *MPushDirectory) GetSubdirname() []string {
+	if m != nil {
+		return m.Subdirname
+	}
+	return nil
+}
+
+func (m *MPushDirectory) GetSubfilename() []string {
+	if m != nil {
+		return m.Subfilename
+	}
+	return nil
+}
 
 type MPullDirectory struct {
 	XXX_unrecognized []byte `json:"-"`
@@ -130,10 +166,43 @@ func (m *MSyncDirectory) String() string            { return proto.CompactTextSt
 func (*MSyncDirectory) ProtoMessage()               {}
 func (*MSyncDirectory) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{3} }
 
+type MDeleteDirectory struct {
+	Root             *string `protobuf:"bytes,1,opt,name=root" json:"root,omitempty"`
+	FileName         *string `protobuf:"bytes,2,opt,name=fileName" json:"fileName,omitempty"`
+	FilePath         *string `protobuf:"bytes,3,opt,name=filePath" json:"filePath,omitempty"`
+	XXX_unrecognized []byte  `json:"-"`
+}
+
+func (m *MDeleteDirectory) Reset()                    { *m = MDeleteDirectory{} }
+func (m *MDeleteDirectory) String() string            { return proto.CompactTextString(m) }
+func (*MDeleteDirectory) ProtoMessage()               {}
+func (*MDeleteDirectory) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{4} }
+
+func (m *MDeleteDirectory) GetRoot() string {
+	if m != nil && m.Root != nil {
+		return *m.Root
+	}
+	return ""
+}
+
+func (m *MDeleteDirectory) GetFileName() string {
+	if m != nil && m.FileName != nil {
+		return *m.FileName
+	}
+	return ""
+}
+
+func (m *MDeleteDirectory) GetFilePath() string {
+	if m != nil && m.FilePath != nil {
+		return *m.FilePath
+	}
+	return ""
+}
+
 type MPushFile struct {
 	Root             *string `protobuf:"bytes,1,opt,name=root" json:"root,omitempty"`
 	FileName         *string `protobuf:"bytes,2,opt,name=fileName" json:"fileName,omitempty"`
-	FileSize         *int32  `protobuf:"varint,3,opt,name=fileSize" json:"fileSize,omitempty"`
+	FileSize         *int64  `protobuf:"varint,3,opt,name=fileSize" json:"fileSize,omitempty"`
 	FileDir          *string `protobuf:"bytes,4,opt,name=fileDir" json:"fileDir,omitempty"`
 	XXX_unrecognized []byte  `json:"-"`
 }
@@ -141,7 +210,7 @@ type MPushFile struct {
 func (m *MPushFile) Reset()                    { *m = MPushFile{} }
 func (m *MPushFile) String() string            { return proto.CompactTextString(m) }
 func (*MPushFile) ProtoMessage()               {}
-func (*MPushFile) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{4} }
+func (*MPushFile) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{5} }
 
 func (m *MPushFile) GetRoot() string {
 	if m != nil && m.Root != nil {
@@ -157,7 +226,7 @@ func (m *MPushFile) GetFileName() string {
 	return ""
 }
 
-func (m *MPushFile) GetFileSize() int32 {
+func (m *MPushFile) GetFileSize() int64 {
 	if m != nil && m.FileSize != nil {
 		return *m.FileSize
 	}
@@ -178,16 +247,40 @@ type MPullFile struct {
 func (m *MPullFile) Reset()                    { *m = MPullFile{} }
 func (m *MPullFile) String() string            { return proto.CompactTextString(m) }
 func (*MPullFile) ProtoMessage()               {}
-func (*MPullFile) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{5} }
+func (*MPullFile) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{6} }
 
 type MDeleteFile struct {
-	XXX_unrecognized []byte `json:"-"`
+	Root             *string `protobuf:"bytes,1,opt,name=root" json:"root,omitempty"`
+	FileName         *string `protobuf:"bytes,2,opt,name=fileName" json:"fileName,omitempty"`
+	FilePath         *string `protobuf:"bytes,3,opt,name=filePath" json:"filePath,omitempty"`
+	XXX_unrecognized []byte  `json:"-"`
 }
 
 func (m *MDeleteFile) Reset()                    { *m = MDeleteFile{} }
 func (m *MDeleteFile) String() string            { return proto.CompactTextString(m) }
 func (*MDeleteFile) ProtoMessage()               {}
-func (*MDeleteFile) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{6} }
+func (*MDeleteFile) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{7} }
+
+func (m *MDeleteFile) GetRoot() string {
+	if m != nil && m.Root != nil {
+		return *m.Root
+	}
+	return ""
+}
+
+func (m *MDeleteFile) GetFileName() string {
+	if m != nil && m.FileName != nil {
+		return *m.FileName
+	}
+	return ""
+}
+
+func (m *MDeleteFile) GetFilePath() string {
+	if m != nil && m.FilePath != nil {
+		return *m.FilePath
+	}
+	return ""
+}
 
 type MMoveFile struct {
 	XXX_unrecognized []byte `json:"-"`
@@ -196,13 +289,14 @@ type MMoveFile struct {
 func (m *MMoveFile) Reset()                    { *m = MMoveFile{} }
 func (m *MMoveFile) String() string            { return proto.CompactTextString(m) }
 func (*MMoveFile) ProtoMessage()               {}
-func (*MMoveFile) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{7} }
+func (*MMoveFile) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{8} }
 
 func init() {
 	proto.RegisterType((*MInitDirectory)(nil), "syncdirectory.MInitDirectory")
 	proto.RegisterType((*MPushDirectory)(nil), "syncdirectory.MPushDirectory")
 	proto.RegisterType((*MPullDirectory)(nil), "syncdirectory.MPullDirectory")
 	proto.RegisterType((*MSyncDirectory)(nil), "syncdirectory.MSyncDirectory")
+	proto.RegisterType((*MDeleteDirectory)(nil), "syncdirectory.MDeleteDirectory")
 	proto.RegisterType((*MPushFile)(nil), "syncdirectory.MPushFile")
 	proto.RegisterType((*MPullFile)(nil), "syncdirectory.MPullFile")
 	proto.RegisterType((*MDeleteFile)(nil), "syncdirectory.MDeleteFile")
@@ -213,21 +307,26 @@ func init() {
 func init() { proto.RegisterFile("syncdirectory.proto", fileDescriptor0) }
 
 var fileDescriptor0 = []byte{
-	// 252 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x6c, 0x90, 0x4d, 0x4e, 0xc3, 0x30,
-	0x10, 0x85, 0x71, 0x7f, 0x28, 0x99, 0x90, 0x30, 0x32, 0x1b, 0x8b, 0x55, 0x15, 0xb1, 0xa8, 0x58,
-	0x70, 0x09, 0x12, 0x24, 0x16, 0x46, 0xa8, 0x3d, 0x01, 0x4a, 0x0d, 0x58, 0x32, 0x31, 0x38, 0x06,
-	0x29, 0x9c, 0x85, 0xc3, 0x22, 0x0f, 0x71, 0x8a, 0x25, 0x76, 0xf3, 0xbe, 0x97, 0xc9, 0xbc, 0x67,
-	0x38, 0xef, 0x87, 0xae, 0xdd, 0x6b, 0xa7, 0x5a, 0x6f, 0xdd, 0x70, 0xfd, 0xe6, 0xac, 0xb7, 0xbc,
-	0x48, 0x60, 0x75, 0x09, 0xa5, 0xbc, 0xeb, 0xb4, 0xaf, 0x23, 0xe1, 0x1c, 0x16, 0xce, 0x5a, 0x2f,
-	0xd8, 0x9a, 0x6d, 0xb2, 0x2d, 0xcd, 0x15, 0x42, 0x29, 0x1f, 0x3e, 0xfa, 0x97, 0xe9, 0xab, 0x91,
-	0x18, 0x93, 0x92, 0xdd, 0xd0, 0xb5, 0x07, 0xf2, 0x0e, 0x19, 0x6d, 0xdd, 0x6a, 0xa3, 0xfe, 0xfb,
-	0x2d, 0xbf, 0x80, 0x93, 0x27, 0x6d, 0xd4, 0xfd, 0xe3, 0xab, 0x12, 0x33, 0xe2, 0x93, 0x8e, 0xde,
-	0x4e, 0x7f, 0x29, 0x31, 0x5f, 0xb3, 0xcd, 0x72, 0x3b, 0x69, 0x2e, 0x60, 0x15, 0xe6, 0x5a, 0x3b,
-	0xb1, 0xa0, 0xb5, 0x28, 0xab, 0x9c, 0x4e, 0x1a, 0x13, 0x4e, 0x56, 0x05, 0xe4, 0xb2, 0x56, 0x46,
-	0x79, 0x45, 0x32, 0x78, 0xd2, 0x7e, 0x92, 0xb8, 0xfa, 0x66, 0x70, 0xda, 0x84, 0xb8, 0xb2, 0x7f,
-	0xbe, 0xb1, 0xfb, 0x90, 0xaf, 0x6c, 0x92, 0x87, 0xc0, 0x23, 0x62, 0x49, 0x6d, 0x64, 0x23, 0xfb,
-	0x53, 0x1c, 0x67, 0xc4, 0x92, 0xea, 0x38, 0xe7, 0x05, 0x64, 0x4d, 0x2c, 0x8f, 0x8b, 0x51, 0xfe,
-	0x06, 0xc3, 0x25, 0x3f, 0x83, 0xbc, 0x39, 0x44, 0xc3, 0x63, 0xf2, 0x63, 0x38, 0x5c, 0xfd, 0x04,
-	0x00, 0x00, 0xff, 0xff, 0x4e, 0x87, 0x5c, 0xbb, 0xbb, 0x01, 0x00, 0x00,
+	// 326 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xa4, 0x92, 0xbf, 0x4e, 0xc3, 0x30,
+	0x10, 0xc6, 0x49, 0x13, 0x68, 0x73, 0xa1, 0xe5, 0x64, 0x18, 0x22, 0x06, 0x54, 0x59, 0x0c, 0x15,
+	0x03, 0x2f, 0x41, 0x83, 0xc4, 0x10, 0x54, 0xb5, 0x13, 0x0b, 0x52, 0xff, 0x18, 0x6a, 0xc9, 0xc4,
+	0xe0, 0xb8, 0x48, 0x65, 0xe2, 0x99, 0x78, 0x42, 0xe4, 0x6b, 0xdc, 0x34, 0x08, 0x75, 0x80, 0xcd,
+	0xdf, 0xef, 0x4e, 0x77, 0xdf, 0xdd, 0x19, 0x4e, 0xcb, 0x75, 0x31, 0x5f, 0x48, 0x23, 0xe6, 0x56,
+	0x9b, 0xf5, 0xf5, 0xab, 0xd1, 0x56, 0xb3, 0x6e, 0x03, 0xf2, 0x4b, 0xe8, 0xe5, 0x77, 0x85, 0xb4,
+	0x43, 0x4f, 0x18, 0x83, 0xc8, 0x68, 0x6d, 0xd3, 0xa0, 0x1f, 0x0c, 0xe2, 0x31, 0xbd, 0xf9, 0x67,
+	0x00, 0xbd, 0x7c, 0xb4, 0x2a, 0x97, 0x7b, 0xd3, 0x58, 0x0a, 0xed, 0x85, 0x34, 0xc5, 0xf4, 0x45,
+	0xa4, 0x2d, 0xc2, 0x5e, 0xb2, 0x0b, 0x80, 0x72, 0x35, 0xf3, 0xc1, 0xb0, 0x1f, 0x0e, 0xe2, 0xf1,
+	0x0e, 0x61, 0x7d, 0x48, 0xca, 0xd5, 0xec, 0x49, 0x2a, 0x41, 0x09, 0x11, 0x25, 0xec, 0x22, 0x8e,
+	0xe4, 0x40, 0xa9, 0xad, 0x03, 0x22, 0x93, 0x75, 0x31, 0xaf, 0xc9, 0x23, 0x60, 0x3e, 0x14, 0x4a,
+	0x58, 0xb1, 0xdf, 0xe7, 0x39, 0x74, 0x5c, 0xdd, 0xfb, 0xda, 0xe8, 0x56, 0xfb, 0xd8, 0x68, 0x6a,
+	0x97, 0x69, 0x58, 0xc7, 0x9c, 0xe6, 0x6f, 0x10, 0xd3, 0x16, 0x6e, 0xa5, 0x12, 0x7f, 0x2d, 0x3c,
+	0x91, 0x1f, 0x82, 0x0a, 0x87, 0xe3, 0xad, 0x76, 0x8b, 0x73, 0xef, 0xa1, 0x34, 0x69, 0xb4, 0x59,
+	0x5c, 0x25, 0x79, 0x42, 0x2d, 0x95, 0x72, 0x2d, 0xf9, 0x03, 0x24, 0xd5, 0x7c, 0xff, 0x71, 0xf0,
+	0xeb, 0x68, 0xae, 0x4f, 0xae, 0xdf, 0xa9, 0xf0, 0xd5, 0x57, 0x00, 0xc7, 0x99, 0x5b, 0x6d, 0x5e,
+	0x3e, 0xdf, 0xe8, 0x85, 0xeb, 0xd4, 0xcb, 0x1a, 0xbf, 0x04, 0x0f, 0x88, 0x35, 0xbe, 0x04, 0x06,
+	0x15, 0xdb, 0x39, 0x12, 0xb6, 0x88, 0x35, 0xce, 0x84, 0x21, 0x3b, 0x03, 0xcc, 0x7e, 0x1c, 0x0a,
+	0x23, 0xd6, 0x85, 0x38, 0xf3, 0xeb, 0xc5, 0xc3, 0x4a, 0x6e, 0x46, 0xc7, 0x23, 0x76, 0x02, 0x49,
+	0x56, 0x0f, 0x8f, 0x6d, 0x8a, 0x7b, 0xcb, 0xd8, 0xf9, 0x0e, 0x00, 0x00, 0xff, 0xff, 0xb9, 0x45,
+	0xff, 0x14, 0xee, 0x02, 0x00, 0x00,
 }

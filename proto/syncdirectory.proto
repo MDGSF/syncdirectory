@@ -6,18 +6,22 @@ enum ESyncMsgCode {
     EPushDirectory = 1; /*drop server file, use client file*/
     EPullDirectory = 2; /*drop client file, use server file*/
     ESyncDirectory = 3; /*client to server, and server to client, sync*/
-    EPushFile = 4;
-    EPullFile = 5;
-    EDeleteFile = 6;
-    EMoveFile = 7;
+    EDeleteDirectory = 4;
+    EPushFile = 5;
+    EPullFile = 6;
+    EDeleteFile = 7;
+    EMoveFile = 8;
 }
 
 message MInitDirectory {
-    optional string root = 1; 
+    optional string root = 1;
 }
 
 message MPushDirectory {
-
+    optional string root = 1;
+    optional string dirname = 2;
+    repeated string subdirname = 3;
+    repeated string subfilename = 4;
 }
 
 message MPullDirectory {
@@ -28,10 +32,16 @@ message MSyncDirectory {
 
 }
 
+message MDeleteDirectory {
+    optional string root = 1;
+    optional string fileName = 2;
+    optional string filePath = 3;
+}
+
 message MPushFile {
     optional string root = 1;
     optional string fileName = 2;
-    optional int32 fileSize = 3; 
+    optional int64 fileSize = 3; 
     optional string fileDir = 4; /*The parent directory of the file.*/
 }
 
@@ -40,7 +50,9 @@ message MPullFile {
 }
 
 message MDeleteFile {
-
+    optional string root = 1;
+    optional string fileName = 2;
+    optional string filePath = 3;
 }
 
 message MMoveFile {

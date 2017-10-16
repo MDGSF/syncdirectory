@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"syncdirectory/public"
 	"time"
 
 	"github.com/fsnotify"
@@ -13,6 +14,33 @@ type NotifyEvent struct {
 	EventType uint32
 	Name      string
 	Time      time.Time
+	NewName   string
+}
+
+func (t NotifyEvent) Changed() bool {
+	if fsnotify.Op(t.EventType)&fsnotify.Create == fsnotify.Create {
+		return true
+	}
+
+	if fsnotify.Op(t.EventType)&fsnotify.Write == fsnotify.Write {
+		return true
+	}
+
+	return false
+}
+
+func (t NotifyEvent) Removed() bool {
+	if fsnotify.Op(t.EventType)&fsnotify.Remove == fsnotify.Remove {
+		return true
+	}
+	return false
+}
+
+func (t NotifyEvent) Renamed() bool {
+	if fsnotify.Op(t.EventType)&fsnotify.Rename == fsnotify.Rename {
+		return true
+	}
+	return false
 }
 
 func (t NotifyEvent) Equal(u NotifyEvent) bool {
@@ -24,6 +52,14 @@ func (t NotifyEvent) Equal(u NotifyEvent) bool {
 		return false
 	}
 
+	if !t.TimeEqual(u) {
+		return false
+	}
+
+	return true
+}
+
+func (t NotifyEvent) TimeEqual(u NotifyEvent) bool {
 	if t.Time.Year() != u.Time.Year() {
 		return false
 	}
@@ -52,6 +88,7 @@ func (t NotifyEvent) Equal(u NotifyEvent) bool {
 }
 
 const (
+	ROOT     = "fsnotify_demo"
 	DIR_NAME = "E:\\fsnotify_demo"
 )
 
@@ -121,13 +158,61 @@ func processRawEvent(raweventChan chan fsnotify.Event, eventChan chan NotifyEven
 }
 
 func processDupEvent(dupeventChan chan NotifyEvent, eventChan chan NotifyEvent) {
+	//preEvent := NotifyEvent{}
+	//for dupevent := range dupeventChan {
+	//	if !dupevent.Equal(preEvent) {
+	//		fmt.Println("pre", preEvent)
+	//		fmt.Println("dup", dupevent)
+	//		preEvent = dupevent
+	//		eventChan <- dupevent
+	//	}
+	//}
+
 	preEvent := NotifyEvent{}
-	for dupevent := range dupeventChan {
-		if !dupevent.Equal(preEvent) {
-			fmt.Println("pre", preEvent)
-			fmt.Println("dup", dupevent)
+	for {
+		dupevent, ok := <-dupeventChan
+		if !ok {
+			continue
+		}
+
+		if fsnotify.Op(dupevent.EventType)&fsnotify.Rename == fsnotify.Rename {
+			next, ok := <-dupeventChan
+			if !ok {
+				continue
+			}
+
+			if !dupevent.TimeEqual(next) {
+				continue
+			}
+
+			if fsnotify.Op(next.EventType)&fsnotify.Create != fsnotify.Create {
+				continue
+			}
+
+			dupevent.NewName = next.Name
+
+			next, ok = <-dupeventChan
+			if !ok {
+				continue
+			}
+
+			if !dupevent.TimeEqual(next) {
+				continue
+			}
+
+			if fsnotify.Op(next.EventType)&fsnotify.Write != fsnotify.Write {
+				continue
+			}
+
 			preEvent = dupevent
 			eventChan <- dupevent
+		} else {
+			if !dupevent.Equal(preEvent) {
+				fmt.Println("pre", preEvent)
+				fmt.Println("dup", dupevent)
+				preEvent = dupevent
+				eventChan <- dupevent
+			}
 		}
 	}
 }
@@ -139,15 +224,6 @@ func watchDir(path string) {
 		fmt.Println("watcher.Add failed", err.Error())
 		return
 	}
-}
-
-func isDir(path string) bool {
-	fileInfo, err := os.Stat(path)
-	if err != nil {
-		fmt.Println("os.Stat failed", err.Error())
-		return false
-	}
-	return fileInfo.IsDir()
 }
 
 func browserDir(path string) {
@@ -170,7 +246,7 @@ func browserDir(path string) {
 
 	for _, name := range names {
 		sub := path + "\\" + name
-		if !isDir(sub) {
+		if !public.IsDir(sub) {
 			continue
 		}
 		browserDir(sub)
