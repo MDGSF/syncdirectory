@@ -8,11 +8,11 @@ import (
 
 var Log *log.Logger
 
-func init() {
-	logfile, err := os.OpenFile("test.log", os.O_RDWR|os.O_CREATE, 0666)
+func InitLog(name string) {
+	logfile, err := os.OpenFile(name, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
 	if err != nil {
 		fmt.Printf("%s\n", err.Error())
-		//os.Exit(-1)
+		os.Exit(-1)
 	}
 	//defer logfile.Close()
 
@@ -23,5 +23,6 @@ func init() {
 	Log.Printf("arr[0] = %d", arr[0])
 	Log.Println("hello")
 	Log.Println("oh....")
+	Log.Printf("Log test end\n\n")
 	//Log.Fatal("test") //这个日志会直接让程序退出。
 }

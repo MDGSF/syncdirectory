@@ -2,9 +2,9 @@ package notifyDir
 
 import (
 	"fmt"
-	"log"
 	"os"
-	"syncdirectory/public"
+	"strings"
+	p "syncdirectory/public"
 	"time"
 
 	"github.com/fsnotify"
@@ -98,10 +98,14 @@ var watcher *fsnotify.Watcher
 StartNotify start notify directory.
 */
 func StartNotify(eventChan chan NotifyEvent) {
+	p.Log.Println("Start notify directory:", DIR_NAME)
 	raweventChan := make(chan fsnotify.Event)
+	duptimeeventChan := make(chan NotifyEvent)
 	dupeventChan := make(chan NotifyEvent)
+
 	go runFsnotify(raweventChan)
-	go processRawEvent(raweventChan, dupeventChan)
+	go processRawEvent(raweventChan, duptimeeventChan)
+	go processTheSameSecondDupPacket(duptimeeventChan, dupeventChan)
 	go processDupEvent(dupeventChan, eventChan)
 }
 
@@ -109,7 +113,7 @@ func runFsnotify(rawevent chan fsnotify.Event) {
 	var err error
 	watcher, err = fsnotify.NewWatcher()
 	if err != nil {
-		fmt.Println("fsnotify.NewWatcher failed", err.Error())
+		p.Log.Println("fsnotify.NewWatcher failed", err.Error())
 		return
 	}
 	defer watcher.Close()
@@ -121,25 +125,25 @@ func runFsnotify(rawevent chan fsnotify.Event) {
 		for {
 			select {
 			case event := <-watcher.Events:
-				//log.Println("event:", event)
+				//p.Log.Println("event:", event)
 				if event.Op&fsnotify.Create == fsnotify.Create {
-					log.Println("Create file:", event.Name)
+					p.Log.Println("Create file:", event.Name)
 				}
 				if event.Op&fsnotify.Write == fsnotify.Write {
-					log.Println("Write file:", event.Name)
+					p.Log.Println("Write file:", event.Name)
 				}
 				if event.Op&fsnotify.Remove == fsnotify.Remove {
-					log.Println("Remove file:", event.Name)
+					p.Log.Println("Remove file:", event.Name)
 				}
 				if event.Op&fsnotify.Rename == fsnotify.Rename {
-					log.Println("Rename file:", event.Name)
+					p.Log.Println("Rename file:", event.Name)
 				}
 				if event.Op&fsnotify.Chmod == fsnotify.Chmod {
-					log.Println("Chmod file:", event.Name)
+					p.Log.Println("Chmod file:", event.Name)
 				}
 				rawevent <- event
 			case err := <-watcher.Errors:
-				log.Println("error:", err)
+				p.Log.Println("error:", err)
 			}
 		}
 	}()
@@ -157,18 +161,17 @@ func processRawEvent(raweventChan chan fsnotify.Event, eventChan chan NotifyEven
 	}
 }
 
-func processDupEvent(dupeventChan chan NotifyEvent, eventChan chan NotifyEvent) {
-	//preEvent := NotifyEvent{}
-	//for dupevent := range dupeventChan {
-	//	if !dupevent.Equal(preEvent) {
-	//		fmt.Println("pre", preEvent)
-	//		fmt.Println("dup", dupevent)
-	//		preEvent = dupevent
-	//		eventChan <- dupevent
-	//	}
-	//}
-
+func processTheSameSecondDupPacket(duptimeEventChan chan NotifyEvent, timeEventChan chan NotifyEvent) {
 	preEvent := NotifyEvent{}
+	for duptimeevent := range duptimeEventChan {
+		if !duptimeevent.Equal(preEvent) {
+			preEvent = duptimeevent
+			timeEventChan <- duptimeevent
+		}
+	}
+}
+
+func processDupEvent(dupeventChan chan NotifyEvent, eventChan chan NotifyEvent) {
 	for {
 		dupevent, ok := <-dupeventChan
 		if !ok {
@@ -176,8 +179,16 @@ func processDupEvent(dupeventChan chan NotifyEvent, eventChan chan NotifyEvent) 
 		}
 
 		if fsnotify.Op(dupevent.EventType)&fsnotify.Rename == fsnotify.Rename {
-			next, ok := <-dupeventChan
-			if !ok {
+
+			var next NotifyEvent
+			to := time.NewTimer(time.Second)
+			select {
+			case next, ok = <-dupeventChan:
+				if !ok {
+					continue
+				}
+			case <-to.C:
+				p.Log.Println("rename timeout")
 				continue
 			}
 
@@ -190,48 +201,45 @@ func processDupEvent(dupeventChan chan NotifyEvent, eventChan chan NotifyEvent) 
 			}
 
 			dupevent.NewName = next.Name
-
-			next, ok = <-dupeventChan
-			if !ok {
-				continue
-			}
-
-			if !dupevent.TimeEqual(next) {
-				continue
-			}
-
-			if fsnotify.Op(next.EventType)&fsnotify.Write != fsnotify.Write {
-				continue
-			}
-
-			preEvent = dupevent
+			//reWatchDir(dupevent.Name, dupevent.NewName)
+			watchDir(dupevent.NewName)
 			eventChan <- dupevent
-		} else {
-			if !dupevent.Equal(preEvent) {
-				fmt.Println("pre", preEvent)
-				fmt.Println("dup", dupevent)
-				preEvent = dupevent
-				eventChan <- dupevent
-			}
+			continue
 		}
+		eventChan <- dupevent
 	}
 }
 
 func watchDir(path string) {
-	fmt.Println("watchDir:", path)
+	p.Log.Println("watchDir:", path)
 	err := watcher.Add(path)
 	if err != nil {
-		fmt.Println("watcher.Add failed", err.Error())
+		p.Log.Println("watcher.Add failed", err.Error())
+		return
+	}
+}
+
+func reWatchDir(old string, new string) {
+	p.Log.Println("reWatchDir from", old, "to", new)
+	err := watcher.Remove(old)
+	if err != nil {
+		p.Log.Println("watcher.Remove failed", err.Error())
+		return
+	}
+
+	err = watcher.Add(new)
+	if err != nil {
+		p.Log.Println("watcher.Add failed", err.Error())
 		return
 	}
 }
 
 func browserDir(path string) {
-	fmt.Println("browserDir:", path)
+	p.Log.Println("browserDir:", path)
 
 	dir, err := os.Open(path)
 	if err != nil {
-		fmt.Println("os.Open failed", err.Error())
+		p.Log.Println("os.Open failed", err.Error())
 		return
 	}
 	defer dir.Close()
@@ -240,15 +248,65 @@ func browserDir(path string) {
 
 	names, err := dir.Readdirnames(-1)
 	if err != nil {
-		fmt.Println("dir.Readdirnames failed", err.Error())
+		p.Log.Println("dir.Readdirnames failed", err.Error())
 		return
 	}
 
 	for _, name := range names {
 		sub := path + "\\" + name
-		if !public.IsDir(sub) {
+		if !p.IsDir(sub) {
 			continue
 		}
 		browserDir(sub)
 	}
+}
+
+type SEventFile struct {
+	AbsoluteFileWithPath string // E:\fsnotify_demo\aaa\test.txt
+	AbsolutePath         string // E:\fsnotify_demo\aaa
+	FileName             string // test.txt
+	Root                 string // fsnotify_demo
+	RelativeFileWithPath string // aaa\test.txt
+	RelativePath         string // aaa
+
+	FileSize int64 // size of file
+	Exists   bool
+	IsDir    bool
+}
+
+func CreateEventFile(absoluteFileWithPath string) (*SEventFile, error) {
+	s := &SEventFile{}
+	s.AbsoluteFileWithPath = absoluteFileWithPath
+	s.AbsolutePath = p.GetFilePath(absoluteFileWithPath)
+	s.FileName = p.GetFileName(absoluteFileWithPath)
+	s.Root = ROOT
+	s.RelativeFileWithPath = GetRelativePath(absoluteFileWithPath)
+	s.RelativePath = GetRelativePath(s.AbsolutePath)
+	s.FileSize = p.FileSize(absoluteFileWithPath)
+
+	exists, err := p.PathExists(absoluteFileWithPath)
+	if err != nil || !exists {
+		s.Exists = false
+	} else {
+		s.Exists = true
+	}
+
+	s.IsDir = p.IsDir(absoluteFileWithPath)
+
+	fmt.Println(s)
+	return s, nil
+}
+
+func GetRelativePath(absolutePath string) string {
+	if strings.HasPrefix(absolutePath, DIR_NAME) {
+		//p.Log.Println("has prefix")
+		if len(absolutePath) > len(DIR_NAME) {
+			return absolutePath[len(DIR_NAME)+1:]
+		} else if len(absolutePath) == len(DIR_NAME) {
+			return ""
+		}
+	} else {
+		//p.Log.Println("has not prefix")
+	}
+	return ""
 }

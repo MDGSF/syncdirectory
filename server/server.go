@@ -83,6 +83,8 @@ func processMsg(conn net.Conn, msgtype int, data []byte) error {
 		processPushFile(conn, data)
 	case int(syncdirectory.ESyncMsgCode_EDeleteFile):
 		processDeleteFile(conn, data)
+	case int(syncdirectory.ESyncMsgCode_EMoveFile):
+		processMoveFile(conn, data)
 	default:
 		fmt.Println("Unknown msgtype", msgtype)
 	}
@@ -105,14 +107,14 @@ func processInitDirectory(conn net.Conn, data []byte) error {
 	newRoot := STORE_LOCATION + "\\" + msg.GetRoot()
 	fmt.Println(newRoot)
 
-	if exists, _ := public.PathExists(newRoot); !exists {
-		if err := os.Mkdir(newRoot, os.ModePerm); err != nil {
-			fmt.Println("mkdir failed", newRoot)
-			return err
-		}
-	} else {
-		fmt.Println(newRoot, "already exists")
-		return nil
+	exists, _ := public.PathExists(newRoot)
+	if exists {
+		os.RemoveAll(newRoot)
+	}
+
+	if err := os.Mkdir(newRoot, os.ModePerm); err != nil {
+		fmt.Println("mkdir failed", newRoot)
+		return err
 	}
 
 	fmt.Printf("create %s successfully.\n", newRoot)
@@ -131,6 +133,14 @@ func processPushDirectory(conn net.Conn, data []byte) error {
 	}
 
 	fmt.Println(msg.GetRoot(), msg.GetDirname(), msg.GetSubdirname(), msg.GetSubfilename())
+
+	path := STORE_LOCATION + "\\" + msg.GetRoot() + string(os.PathSeparator) + msg.GetDirname()
+	if exists, _ := public.PathExists(path); !exists {
+		if err := os.Mkdir(path, os.ModePerm); err != nil {
+			fmt.Println("mkdir failed", path)
+			return err
+		}
+	}
 
 	return nil
 }
@@ -180,5 +190,29 @@ func processDeleteDirectory(conn net.Conn, data []byte) error {
 
 func processDeleteFile(conn net.Conn, data []byte) error {
 	fmt.Println("processDeleteFile")
+	return nil
+}
+
+func processMoveFile(conn net.Conn, data []byte) error {
+	fmt.Println("processMoveFile")
+
+	msg := &syncdirectory.MMoveFile{}
+	err := proto.Unmarshal(data, msg)
+	if err != nil {
+		fmt.Println("Unmarshal MPushFile failed")
+		return err
+	}
+
+	fmt.Println(msg.GetRoot(), msg.GetOldFileWithPath(), msg.GetNewFileWithPath())
+
+	old := STORE_LOCATION + string(os.PathSeparator) + msg.GetRoot() + "\\" + msg.GetOldFileWithPath()
+	new := STORE_LOCATION + "\\" + msg.GetRoot() + "\\" + msg.GetNewFileWithPath()
+
+	err = os.Rename(old, new)
+	if err != nil {
+		fmt.Println("osRename failed")
+		return err
+	}
+
 	return nil
 }

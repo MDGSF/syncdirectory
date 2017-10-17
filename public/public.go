@@ -59,7 +59,7 @@ func GetFileName(fileWithPath string) string {
 	if i == -1 {
 		return fileWithPath
 	}
-	return fileWithPath[i:]
+	return fileWithPath[i+1:]
 }
 
 func SendMsg(conn net.Conn, msgCode int, msg proto.Message) {

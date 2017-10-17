@@ -43,6 +43,7 @@ message MPushFile {
     optional string fileName = 2;
     optional int64 fileSize = 3; 
     optional string fileDir = 4; /*The parent directory of the file.*/
+    optional string relativeFileWithPath = 5;
 }
 
 message MPullFile {
@@ -56,7 +57,9 @@ message MDeleteFile {
 }
 
 message MMoveFile {
-
+    optional string root = 1;
+    optional string oldFileWithPath = 2;
+    optional string newFileWithPath = 3;
 }
 
 
