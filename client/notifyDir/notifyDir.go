@@ -1,7 +1,6 @@
 package notifyDir
 
 import (
-	"fmt"
 	"os"
 	"strings"
 	p "syncdirectory/public"
@@ -22,7 +21,7 @@ func (t NotifyEvent) Changed() bool {
 		return true
 	}
 
-	if fsnotify.Op(t.EventType)&fsnotify.Write == fsnotify.Write {
+	if (fsnotify.Op(t.EventType)&fsnotify.Write == fsnotify.Write) && !p.IsDir(t.Name) {
 		return true
 	}
 
@@ -201,12 +200,66 @@ func processDupEvent(dupeventChan chan NotifyEvent, eventChan chan NotifyEvent) 
 			}
 
 			dupevent.NewName = next.Name
-			//reWatchDir(dupevent.Name, dupevent.NewName)
-			watchDir(dupevent.NewName)
+
+			if p.IsDir(dupevent.NewName) {
+				watchRenameDir(dupevent.NewName)
+			}
+
 			eventChan <- dupevent
 			continue
 		}
 		eventChan <- dupevent
+	}
+}
+
+/*
+fsnotify 有个bug：
+监控目录fsnotify_demo
+子目录有fsnotify_demo\aaa\ccc.txt
+rename aaa -> bbb
+rename ccc.txt -> ddd.txt
+会出错
+因为重命名文件夹的时候，没有把旧的文件夹下的子文件，在内部的状态删除。
+*/
+func watchRenameDir(path string) {
+	p.Log.Println("watchRenameDir:", path)
+	err := watcher.Add(path)
+	if err != nil {
+		p.Log.Println("watcher.Add failed", err.Error())
+	}
+
+	err = watcher.Remove(path)
+	if err != nil {
+		p.Log.Println("watcher.Remove failed", err.Error())
+		return
+	}
+
+	err = watcher.Add(path)
+	if err != nil {
+		p.Log.Println("watcher.Add failed", err.Error())
+		return
+	}
+
+	if !p.IsDir(path) {
+		return
+	}
+
+	dir, err := os.Open(path)
+	if err != nil {
+		p.Log.Println("os.Open failed", err.Error())
+		return
+	}
+	defer dir.Close()
+
+	names, err := dir.Readdirnames(-1)
+	if err != nil {
+		p.Log.Println("dir.Readdirnames failed", err.Error())
+		return
+	}
+
+	for _, name := range names {
+		sub := path + "\\" + name
+		watchRenameDir(sub)
 	}
 }
 
@@ -293,7 +346,8 @@ func CreateEventFile(absoluteFileWithPath string) (*SEventFile, error) {
 
 	s.IsDir = p.IsDir(absoluteFileWithPath)
 
-	fmt.Println(s)
+	p.Log.Println(s)
+
 	return s, nil
 }
 

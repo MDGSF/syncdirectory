@@ -1,7 +1,6 @@
 package public
 
 import (
-	"fmt"
 	"jian/tcp/tools"
 	"net"
 	"os"
@@ -31,7 +30,7 @@ func PathExists(path string) (bool, error) {
 func IsDir(path string) bool {
 	fileInfo, err := os.Stat(path)
 	if err != nil {
-		fmt.Println("os.Stat failed", err.Error())
+		Log.Println("os.Stat failed", err.Error())
 		return false
 	}
 	return fileInfo.IsDir()
@@ -40,7 +39,7 @@ func IsDir(path string) bool {
 func FileSize(fileWithPath string) int64 {
 	fileInfo, err := os.Stat(fileWithPath)
 	if err != nil {
-		fmt.Println("os.Stat failed", err.Error())
+		Log.Println("os.Stat failed", err.Error())
 		return 0
 	}
 	return fileInfo.Size()
@@ -65,13 +64,13 @@ func GetFileName(fileWithPath string) string {
 func SendMsg(conn net.Conn, msgCode int, msg proto.Message) {
 	protob, err := proto.Marshal(msg)
 	if err != nil {
-		fmt.Println("marshal MInitDirectory failed")
+		Log.Println("marshal MInitDirectory failed")
 		return
 	}
 
 	b, err := tools.PackToJSON(msgCode, []byte(protob))
 	if err != nil {
-		fmt.Println("pack to json MInitDirectory failed")
+		Log.Println("pack to json MInitDirectory failed")
 		return
 	}
 

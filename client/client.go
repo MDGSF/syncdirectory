@@ -45,6 +45,8 @@ func main() {
 }
 
 func notifyChanged(event notifyDir.NotifyEvent) {
+	p.Log.Println("notifyChanged")
+
 	conn, err := net.Dial(p.CONN_TYPE, p.CONN_HOST+":"+p.CONN_PORT)
 	if err != nil {
 		p.Log.Println("Error dialing", err.Error())
@@ -61,29 +63,6 @@ func notifyChanged(event notifyDir.NotifyEvent) {
 }
 
 func notifyRemoved(event notifyDir.NotifyEvent) {
-	if p.IsDir(event.Name) {
-		notifyDirectoryDeleted(event)
-	} else {
-		notifyFileDeleted(event)
-	}
-}
-
-func notifyDirectoryDeleted(event notifyDir.NotifyEvent) {
-	conn, err := net.Dial(p.CONN_TYPE, p.CONN_HOST+":"+p.CONN_PORT)
-	if err != nil {
-		p.Log.Println("Error dialing", err.Error())
-		return
-	}
-	defer conn.Close()
-
-	msg := &syncdirectory.MDeleteDirectory{}
-	msg.Root = proto.String(notifyDir.ROOT)
-	msg.FileName = proto.String(p.GetFileName(event.Name))
-	msg.FilePath = proto.String(p.GetFilePath(event.Name))
-	p.SendMsg(conn, int(syncdirectory.ESyncMsgCode_EDeleteDirectory), msg)
-}
-
-func notifyFileDeleted(event notifyDir.NotifyEvent) {
 	p.Log.Println("notifyFileDeleted")
 
 	conn, err := net.Dial(p.CONN_TYPE, p.CONN_HOST+":"+p.CONN_PORT)
@@ -93,15 +72,16 @@ func notifyFileDeleted(event notifyDir.NotifyEvent) {
 	}
 	defer conn.Close()
 
+	file, _ := notifyDir.CreateEventFile(event.Name)
+
 	msg := &syncdirectory.MDeleteFile{}
 	msg.Root = proto.String(notifyDir.ROOT)
-	msg.FileName = proto.String(p.GetFileName(event.Name))
-	msg.FilePath = proto.String(p.GetFilePath(event.Name))
+	msg.RelativeFileWithPath = proto.String(file.RelativeFileWithPath)
 	p.SendMsg(conn, int(syncdirectory.ESyncMsgCode_EDeleteFile), msg)
 }
 
 func notifyRenamed(event notifyDir.NotifyEvent) {
-	p.Log.Println("notifyRenamed")
+	p.Log.Println("notifyRenamed:", event.Name, event.NewName)
 
 	conn, err := net.Dial(p.CONN_TYPE, p.CONN_HOST+":"+p.CONN_PORT)
 	if err != nil {
@@ -121,6 +101,8 @@ func notifyRenamed(event notifyDir.NotifyEvent) {
 }
 
 func sendInitToServer() {
+	p.Log.Println("sendInitToServer")
+
 	conn, err := net.Dial(p.CONN_TYPE, p.CONN_HOST+":"+p.CONN_PORT)
 	if err != nil {
 		p.Log.Println("Error dialing", err.Error())
@@ -199,6 +181,13 @@ func pushNewDirectoryToServer(conn net.Conn, file *notifyDir.SEventFile) {
 func pushFileToServer(conn net.Conn, file *notifyDir.SEventFile) {
 	p.Log.Println("pushFileToServer", file)
 
+	f, err := os.Open(file.AbsoluteFileWithPath)
+	if err != nil {
+		p.Log.Println("err opening file", file.AbsoluteFileWithPath)
+		return
+	}
+	defer f.Close()
+
 	msg := &syncdirectory.MPushFile{}
 	msg.Root = proto.String(file.Root)
 	msg.FileName = proto.String(file.FileName)
@@ -206,13 +195,6 @@ func pushFileToServer(conn net.Conn, file *notifyDir.SEventFile) {
 	msg.FileDir = proto.String(file.RelativePath)
 	msg.RelativeFileWithPath = proto.String(file.RelativeFileWithPath)
 	p.SendMsg(conn, int(syncdirectory.ESyncMsgCode_EPushFile), msg)
-
-	f, err := os.Open(file.AbsoluteFileWithPath)
-	if err != nil {
-		p.Log.Println("err opening file", file.AbsoluteFileWithPath)
-		return
-	}
-	defer f.Close()
 
 	fileInfo, err := os.Lstat(file.AbsoluteFileWithPath)
 	if err != nil {

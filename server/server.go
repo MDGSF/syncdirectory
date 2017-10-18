@@ -77,8 +77,6 @@ func processMsg(conn net.Conn, msgtype int, data []byte) error {
 		processInitDirectory(conn, data)
 	case int(syncdirectory.ESyncMsgCode_EPushDirectory):
 		processPushDirectory(conn, data)
-	case int(syncdirectory.ESyncMsgCode_EDeleteDirectory):
-		processDeleteDirectory(conn, data)
 	case int(syncdirectory.ESyncMsgCode_EPushFile):
 		processPushFile(conn, data)
 	case int(syncdirectory.ESyncMsgCode_EDeleteFile):
@@ -183,13 +181,29 @@ func processPushFile(conn net.Conn, data []byte) error {
 	return nil
 }
 
-func processDeleteDirectory(conn net.Conn, data []byte) error {
-	fmt.Println("processDeleteDirectory")
-	return nil
-}
-
 func processDeleteFile(conn net.Conn, data []byte) error {
 	fmt.Println("processDeleteFile")
+
+	msg := &syncdirectory.MDeleteFile{}
+	err := proto.Unmarshal(data, msg)
+	if err != nil {
+		fmt.Println("Unmarshal MDeleteFile failed")
+		return err
+	}
+
+	fmt.Println(msg.GetRoot(), msg.GetRelativeFileWithPath())
+
+	fileWithPath := STORE_LOCATION + string(os.PathSeparator) + msg.GetRoot() + string(os.PathSeparator) + msg.GetRelativeFileWithPath()
+	fmt.Println(fileWithPath)
+
+	err = os.RemoveAll(fileWithPath)
+	if err != nil {
+		fmt.Println("Delete file failed:", fileWithPath)
+		return err
+	}
+
+	fmt.Printf("Delete file %s success.\n", fileWithPath)
+
 	return nil
 }
 
