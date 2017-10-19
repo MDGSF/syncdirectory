@@ -33,7 +33,7 @@ func main() {
 			fmt.Println("accept failed:", err.Error())
 		}
 
-		fmt.Printf("\n")
+		fmt.Printf("\nnew Connection:\n")
 		go handleRequest(conn)
 	}
 }

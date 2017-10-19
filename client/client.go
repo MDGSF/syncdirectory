@@ -54,11 +54,10 @@ func notifyChanged(event notifyDir.NotifyEvent) {
 	}
 	defer conn.Close()
 
-	file, _ := notifyDir.CreateEventFile(event.Name)
-	if file.IsDir {
-		pushNewDirectoryToServer(conn, file)
+	if event.File.IsDir {
+		pushNewDirectoryToServer(conn, event)
 	} else {
-		pushFileToServer(conn, file)
+		pushFileToServer(conn, event.File)
 	}
 }
 
@@ -72,11 +71,9 @@ func notifyRemoved(event notifyDir.NotifyEvent) {
 	}
 	defer conn.Close()
 
-	file, _ := notifyDir.CreateEventFile(event.Name)
-
 	msg := &syncdirectory.MDeleteFile{}
 	msg.Root = proto.String(notifyDir.ROOT)
-	msg.RelativeFileWithPath = proto.String(file.RelativeFileWithPath)
+	msg.RelativeFileWithPath = proto.String(event.File.RelativeFileWithPath)
 	p.SendMsg(conn, int(syncdirectory.ESyncMsgCode_EDeleteFile), msg)
 }
 
@@ -161,8 +158,8 @@ func pushDirectory(conn net.Conn, path string) {
 	}
 }
 
-func pushNewDirectoryToServer(conn net.Conn, file *notifyDir.SEventFile) {
-	p.Log.Println("pushNewDirectoryToServer", file)
+func pushNewDirectoryToServer(conn net.Conn, event notifyDir.NotifyEvent) {
+	p.Log.Println("pushNewDirectoryToServer", event.File)
 
 	conn, err := net.Dial(p.CONN_TYPE, p.CONN_HOST+":"+p.CONN_PORT)
 	if err != nil {
@@ -172,8 +169,8 @@ func pushNewDirectoryToServer(conn net.Conn, file *notifyDir.SEventFile) {
 	defer conn.Close()
 
 	msg := &syncdirectory.MPushDirectory{}
-	msg.Root = proto.String(file.Root)
-	msg.Dirname = proto.String(file.RelativeFileWithPath)
+	msg.Root = proto.String(event.File.Root)
+	msg.Dirname = proto.String(event.File.RelativeFileWithPath)
 
 	p.SendMsg(conn, int(syncdirectory.ESyncMsgCode_EPushDirectory), msg)
 }
@@ -202,9 +199,11 @@ func pushFileToServer(conn net.Conn, file *notifyDir.SEventFile) {
 		return
 	}
 
-	written, err := io.CopyN(conn, f, fileInfo.Size())
-	if written != fileInfo.Size() || err != nil {
-		p.Log.Println("error copy")
-		return
+	if fileInfo.Size() > 0 {
+		written, err := io.CopyN(conn, f, fileInfo.Size())
+		if written != fileInfo.Size() || err != nil {
+			p.Log.Println("error copy")
+			return
+		}
 	}
 }

@@ -14,6 +14,7 @@ type NotifyEvent struct {
 	Name      string
 	Time      time.Time
 	NewName   string
+	File      *SEventFile
 }
 
 func (t NotifyEvent) Changed() bool {
@@ -156,6 +157,13 @@ func processRawEvent(raweventChan chan fsnotify.Event, eventChan chan NotifyEven
 		event.EventType = uint32(rawevent.Op)
 		event.Name = rawevent.Name
 		event.Time = time.Now()
+
+		var err error
+		event.File, err = CreateEventFile(rawevent.Name)
+		if err != nil {
+			continue
+		}
+
 		eventChan <- event
 	}
 }
