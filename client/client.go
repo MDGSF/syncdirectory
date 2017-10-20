@@ -1,4 +1,4 @@
-package main
+package client
 
 import (
 	"flag"
@@ -7,7 +7,6 @@ import (
 	"net"
 	"os"
 	"syncdirectory"
-	"syncdirectory/client/notifyDir"
 	p "syncdirectory/public"
 
 	"github.com/golang/protobuf/proto"
@@ -23,7 +22,7 @@ func checkFlag() {
 	}
 }
 
-func main() {
+func StartClient() {
 	checkFlag()
 
 	p.InitLog("client.log")
@@ -32,11 +31,11 @@ func main() {
 	if *firstInit {
 		sendInitToServer()
 	} else if *pullAllFromServer {
-
+		pullDirectoryFromServer()
 	}
 
-	events := make(chan notifyDir.NotifyEvent)
-	notifyDir.StartNotify(events)
+	events := make(chan NotifyEvent)
+	StartNotify(events)
 
 	for event := range events {
 		p.Log.Println("main", event.EventType, event.Name)
@@ -55,7 +54,7 @@ func main() {
 	<-done
 }
 
-func notifyChanged(event notifyDir.NotifyEvent) {
+func notifyChanged(event NotifyEvent) {
 	p.Log.Println("notifyChanged")
 
 	conn, err := net.Dial(p.CONN_TYPE, p.CONN_HOST+":"+p.CONN_PORT)
@@ -72,7 +71,7 @@ func notifyChanged(event notifyDir.NotifyEvent) {
 	}
 }
 
-func notifyRemoved(event notifyDir.NotifyEvent) {
+func notifyRemoved(event NotifyEvent) {
 	p.Log.Println("notifyFileDeleted")
 
 	conn, err := net.Dial(p.CONN_TYPE, p.CONN_HOST+":"+p.CONN_PORT)
@@ -83,12 +82,12 @@ func notifyRemoved(event notifyDir.NotifyEvent) {
 	defer conn.Close()
 
 	msg := &syncdirectory.MDeleteFile{}
-	msg.Root = proto.String(notifyDir.ROOT)
+	msg.Root = proto.String(ROOT)
 	msg.RelativeFileWithPath = proto.String(event.File.RelativeFileWithPath)
 	p.SendMsg(conn, int(syncdirectory.ESyncMsgCode_EDeleteFile), msg)
 }
 
-func notifyRenamed(event notifyDir.NotifyEvent) {
+func notifyRenamed(event NotifyEvent) {
 	p.Log.Println("notifyRenamed:", event.Name, event.NewName)
 
 	conn, err := net.Dial(p.CONN_TYPE, p.CONN_HOST+":"+p.CONN_PORT)
@@ -98,11 +97,11 @@ func notifyRenamed(event notifyDir.NotifyEvent) {
 	}
 	defer conn.Close()
 
-	old, _ := notifyDir.CreateEventFile(event.Name)
-	new, _ := notifyDir.CreateEventFile(event.NewName)
+	old, _ := CreateEventFile(event.Name)
+	new, _ := CreateEventFile(event.NewName)
 
 	msg := &syncdirectory.MMoveFile{}
-	msg.Root = proto.String(notifyDir.ROOT)
+	msg.Root = proto.String(ROOT)
 	msg.OldFileWithPath = proto.String(old.RelativeFileWithPath)
 	msg.NewFileWithPath = proto.String(new.RelativeFileWithPath)
 	p.SendMsg(conn, int(syncdirectory.ESyncMsgCode_EMoveFile), msg)
@@ -119,10 +118,10 @@ func sendInitToServer() {
 	defer conn.Close()
 
 	msg := &syncdirectory.MInitDirectory{}
-	msg.Root = proto.String(notifyDir.ROOT)
+	msg.Root = proto.String(ROOT)
 	p.SendMsg(conn, int(syncdirectory.ESyncMsgCode_EInitDirectory), msg)
 
-	pushDirectory(conn, notifyDir.DIR_NAME)
+	pushDirectory(conn, DIR_NAME)
 
 	p.Log.Printf("sendInitToServer success\n\n")
 }
@@ -138,7 +137,7 @@ func pullDirectoryFromServer() {
 	defer conn.Close()
 
 	msg := &syncdirectory.MPullDirectoryRequest{}
-	msg.Root = proto.String(notifyDir.ROOT)
+	msg.Root = proto.String(ROOT)
 	p.SendMsg(conn, int(syncdirectory.ESyncMsgCode_EPullDirectoryRequest), msg)
 }
 
@@ -153,8 +152,8 @@ func pushDirectory(conn net.Conn, path string) {
 	defer dir.Close()
 
 	msg := &syncdirectory.MPushDirectory{}
-	msg.Root = proto.String(notifyDir.ROOT)
-	msg.Dirname = proto.String(notifyDir.GetRelativePath(path))
+	msg.Root = proto.String(ROOT)
+	msg.Dirname = proto.String(GetRelativePath(path))
 
 	names, err := dir.Readdirnames(-1)
 	if err != nil {
@@ -178,13 +177,13 @@ func pushDirectory(conn net.Conn, path string) {
 		if p.IsDir(sub) {
 			pushDirectory(conn, sub)
 		} else {
-			file, _ := notifyDir.CreateEventFile(sub)
+			file, _ := CreateEventFile(sub)
 			pushFileToServer(conn, file)
 		}
 	}
 }
 
-func pushNewDirectoryToServer(conn net.Conn, event notifyDir.NotifyEvent) {
+func pushNewDirectoryToServer(conn net.Conn, event NotifyEvent) {
 	p.Log.Println("pushNewDirectoryToServer", event.File)
 
 	conn, err := net.Dial(p.CONN_TYPE, p.CONN_HOST+":"+p.CONN_PORT)
@@ -201,7 +200,7 @@ func pushNewDirectoryToServer(conn net.Conn, event notifyDir.NotifyEvent) {
 	p.SendMsg(conn, int(syncdirectory.ESyncMsgCode_EPushDirectory), msg)
 }
 
-func pushFileToServer(conn net.Conn, file *notifyDir.SEventFile) {
+func pushFileToServer(conn net.Conn, file *SEventFile) {
 	p.Log.Println("pushFileToServer", file)
 
 	f, err := os.Open(file.AbsoluteFileWithPath)

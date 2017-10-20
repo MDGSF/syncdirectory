@@ -23,4 +23,5 @@ func init() {
 	Register(int(syncdirectory.ESyncMsgCode_EPushFile), ProcessPushFile)
 	Register(int(syncdirectory.ESyncMsgCode_EDeleteFile), ProcessDeleteFile)
 	Register(int(syncdirectory.ESyncMsgCode_EMoveFile), ProcessMoveFile)
+	Register(int(syncdirectory.ESyncMsgCode_EPullDirectoryRequest), ProcessPullDirectoryRequest)
 }

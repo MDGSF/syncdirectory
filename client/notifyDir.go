@@ -1,4 +1,4 @@
-package notifyDir
+package client
 
 import (
 	"os"
