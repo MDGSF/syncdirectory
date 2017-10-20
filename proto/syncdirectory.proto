@@ -2,14 +2,23 @@ syntax = "proto2";
 package syncdirectory;
 
 enum ESyncMsgCode {
-    EInitDirectory = 0;
-    EPushDirectory = 1; /*drop server file, use client file*/
-    EPullDirectory = 2; /*drop client file, use server file*/
-    ESyncDirectory = 3; /*client to server, and server to client, sync*/
-    EPushFile = 4;
-    EPullFile = 5;
-    EDeleteFile = 6;
-    EMoveFile = 7;
+
+    EInitDirectory = 0; /*Client-->server, Create a new directory in server.*/
+
+    EPushDirectory = 1; /*Push directory.*/
+
+    EPullDirectoryRequest = 2; /*Client-->server, request server to push directory.*/
+
+    ESyncDirectoryRequest = 3; /*Client-->server, request to sync directory.*/
+    ESyncDirectory = 4; /*Client<-->server, sync directory*/
+
+    EPushFile = 5; /*Push file.*/
+
+    EPullFile = 6;
+
+    EDeleteFile = 7;
+
+    EMoveFile = 8;
 }
 
 message MInitDirectory {
@@ -23,8 +32,8 @@ message MPushDirectory {
     repeated string subfilename = 4;
 }
 
-message MPullDirectory {
-
+message MPullDirectoryRequest {
+    optional string root = 1;
 }
 
 message MSyncDirectory {

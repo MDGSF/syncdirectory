@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"io"
 	"net"
 	"os"
@@ -12,16 +13,26 @@ import (
 	"github.com/golang/protobuf/proto"
 )
 
-var firstInit = flag.Bool("firstInit", false, "first time init directory.")
+var firstInit = flag.Bool("firstInit", false, "First time init directory.")
+var pullAllFromServer = flag.Bool("pullAllFromServer", false, "Drop local file, and pull all file from server.")
+
+func checkFlag() {
+	flag.Parse()
+	if *firstInit && *pullAllFromServer {
+		fmt.Println("firstInit and pullAllFromServer can't be set at the same time.")
+	}
+}
 
 func main() {
-	flag.Parse()
+	checkFlag()
 
 	p.InitLog("client.log")
 	p.Log.Println("client start")
 
 	if *firstInit {
 		sendInitToServer()
+	} else if *pullAllFromServer {
+
 	}
 
 	events := make(chan notifyDir.NotifyEvent)
@@ -114,6 +125,21 @@ func sendInitToServer() {
 	pushDirectory(conn, notifyDir.DIR_NAME)
 
 	p.Log.Printf("sendInitToServer success\n\n")
+}
+
+func pullDirectoryFromServer() {
+	p.Log.Println("pullDirectoryFromServer")
+
+	conn, err := net.Dial(p.CONN_TYPE, p.CONN_HOST+":"+p.CONN_PORT)
+	if err != nil {
+		p.Log.Println("Error dialing", err.Error())
+		return
+	}
+	defer conn.Close()
+
+	msg := &syncdirectory.MPullDirectoryRequest{}
+	msg.Root = proto.String(notifyDir.ROOT)
+	p.SendMsg(conn, int(syncdirectory.ESyncMsgCode_EPullDirectoryRequest), msg)
 }
 
 func pushDirectory(conn net.Conn, path string) {

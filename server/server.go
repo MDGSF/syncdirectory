@@ -1,9 +1,9 @@
-package main
+package server
 
 import (
+	"errors"
 	"fmt"
 	"io"
-	"jian/tcp/tools"
 	"net"
 	"os"
 	"syncdirectory"
@@ -12,11 +12,7 @@ import (
 	"github.com/golang/protobuf/proto"
 )
 
-const (
-	STORE_LOCATION = "E:\\ServerStore"
-)
-
-func main() {
+func StartServer() {
 	createStoreLocation()
 
 	l, err := net.Listen(public.CONN_TYPE, public.CONN_HOST+":"+public.CONN_PORT)
@@ -52,14 +48,14 @@ func handleRequest(conn net.Conn) {
 	defer conn.Close()
 
 	for {
-		msg, msgLen, err := tools.Read(conn)
+		msg, msgLen, err := public.Read(conn)
 		if err != nil {
 			fmt.Println("Read failed.", err.Error())
 			return
 		}
 		//fmt.Println("msg and msgLen", msg, msgLen)
 
-		msgtype, data, err := tools.UnpackJSON(msg)
+		msgtype, data, err := public.UnpackJSON(msg)
 		if err != nil {
 			fmt.Println("UnpackJSON failed.", err.Error())
 			return
@@ -72,26 +68,36 @@ func handleRequest(conn net.Conn) {
 }
 
 func processMsg(conn net.Conn, msgtype int, data []byte) error {
-	switch msgtype {
-	case int(syncdirectory.ESyncMsgCode_EInitDirectory):
-		processInitDirectory(conn, data)
-	case int(syncdirectory.ESyncMsgCode_EPushDirectory):
-		processPushDirectory(conn, data)
-	case int(syncdirectory.ESyncMsgCode_EPushFile):
-		processPushFile(conn, data)
-	case int(syncdirectory.ESyncMsgCode_EDeleteFile):
-		processDeleteFile(conn, data)
-	case int(syncdirectory.ESyncMsgCode_EMoveFile):
-		processMoveFile(conn, data)
-	default:
-		fmt.Println("Unknown msgtype", msgtype)
+
+	if v, ok := M[msgtype]; ok {
+		v(conn, data)
+	} else {
+		fmt.Println("Invalid msgtype:", msgtype)
+		return errors.New("Invalid msgtype")
 	}
 
 	return nil
+
+	//switch msgtype {
+	//case int(syncdirectory.ESyncMsgCode_EInitDirectory):
+	//	ProcessInitDirectory(conn, data)
+	//case int(syncdirectory.ESyncMsgCode_EPushDirectory):
+	//	ProcessPushDirectory(conn, data)
+	//case int(syncdirectory.ESyncMsgCode_EPushFile):
+	//	ProcessPushFile(conn, data)
+	//case int(syncdirectory.ESyncMsgCode_EDeleteFile):
+	//	ProcessDeleteFile(conn, data)
+	//case int(syncdirectory.ESyncMsgCode_EMoveFile):
+	//	ProcessMoveFile(conn, data)
+	//default:
+	//	fmt.Println("Unknown msgtype", msgtype)
+	//}
+
+	//return nil
 }
 
-func processInitDirectory(conn net.Conn, data []byte) error {
-	fmt.Printf("processInitDirectory\n")
+func ProcessInitDirectory(conn net.Conn, data []byte) error {
+	fmt.Printf("ProcessInitDirectory\n")
 
 	msg := &syncdirectory.MInitDirectory{}
 	err := proto.Unmarshal(data, msg)
@@ -102,7 +108,7 @@ func processInitDirectory(conn net.Conn, data []byte) error {
 
 	fmt.Println(msg)
 
-	newRoot := STORE_LOCATION + "\\" + msg.GetRoot()
+	newRoot := STORE_LOCATION + string(os.PathSeparator) + msg.GetRoot()
 	fmt.Println(newRoot)
 
 	exists, _ := public.PathExists(newRoot)
@@ -120,8 +126,8 @@ func processInitDirectory(conn net.Conn, data []byte) error {
 	return nil
 }
 
-func processPushDirectory(conn net.Conn, data []byte) error {
-	fmt.Println("processPushDirectory")
+func ProcessPushDirectory(conn net.Conn, data []byte) error {
+	fmt.Println("ProcessPushDirectory")
 
 	msg := &syncdirectory.MPushDirectory{}
 	err := proto.Unmarshal(data, msg)
@@ -132,7 +138,7 @@ func processPushDirectory(conn net.Conn, data []byte) error {
 
 	fmt.Println(msg.GetRoot(), msg.GetDirname(), msg.GetSubdirname(), msg.GetSubfilename())
 
-	path := STORE_LOCATION + "\\" + msg.GetRoot() + string(os.PathSeparator) + msg.GetDirname()
+	path := STORE_LOCATION + string(os.PathSeparator) + msg.GetRoot() + string(os.PathSeparator) + msg.GetDirname()
 	if exists, _ := public.PathExists(path); !exists {
 		if err := os.Mkdir(path, os.ModePerm); err != nil {
 			fmt.Println("mkdir failed", path)
@@ -143,8 +149,8 @@ func processPushDirectory(conn net.Conn, data []byte) error {
 	return nil
 }
 
-func processPushFile(conn net.Conn, data []byte) error {
-	fmt.Println("processPushFile")
+func ProcessPushFile(conn net.Conn, data []byte) error {
+	fmt.Println("ProcessPushFile")
 
 	push := &syncdirectory.MPushFile{}
 	err := proto.Unmarshal(data, push)
@@ -155,11 +161,11 @@ func processPushFile(conn net.Conn, data []byte) error {
 
 	fmt.Println(push.GetRoot(), push.GetFileName(), push.GetFileSize(), push.GetFileDir())
 
-	path := STORE_LOCATION + "\\" + push.GetRoot()
+	path := STORE_LOCATION + string(os.PathSeparator) + push.GetRoot()
 	if len(push.GetFileDir()) != 0 {
-		path = path + "\\" + push.GetFileDir()
+		path = path + string(os.PathSeparator) + push.GetFileDir()
 	}
-	fileWithPath := path + "\\" + push.GetFileName()
+	fileWithPath := path + string(os.PathSeparator) + push.GetFileName()
 	fmt.Println("new file path", fileWithPath)
 
 	if exists, _ := public.PathExists(path); !exists {
@@ -181,8 +187,8 @@ func processPushFile(conn net.Conn, data []byte) error {
 	return nil
 }
 
-func processDeleteFile(conn net.Conn, data []byte) error {
-	fmt.Println("processDeleteFile")
+func ProcessDeleteFile(conn net.Conn, data []byte) error {
+	fmt.Println("ProcessDeleteFile")
 
 	msg := &syncdirectory.MDeleteFile{}
 	err := proto.Unmarshal(data, msg)
@@ -207,8 +213,8 @@ func processDeleteFile(conn net.Conn, data []byte) error {
 	return nil
 }
 
-func processMoveFile(conn net.Conn, data []byte) error {
-	fmt.Println("processMoveFile")
+func ProcessMoveFile(conn net.Conn, data []byte) error {
+	fmt.Println("ProcessMoveFile")
 
 	msg := &syncdirectory.MMoveFile{}
 	err := proto.Unmarshal(data, msg)
@@ -219,8 +225,8 @@ func processMoveFile(conn net.Conn, data []byte) error {
 
 	fmt.Println(msg.GetRoot(), msg.GetOldFileWithPath(), msg.GetNewFileWithPath())
 
-	old := STORE_LOCATION + string(os.PathSeparator) + msg.GetRoot() + "\\" + msg.GetOldFileWithPath()
-	new := STORE_LOCATION + "\\" + msg.GetRoot() + "\\" + msg.GetNewFileWithPath()
+	old := STORE_LOCATION + string(os.PathSeparator) + msg.GetRoot() + string(os.PathSeparator) + msg.GetOldFileWithPath()
+	new := STORE_LOCATION + string(os.PathSeparator) + msg.GetRoot() + string(os.PathSeparator) + msg.GetNewFileWithPath()
 
 	err = os.Rename(old, new)
 	if err != nil {

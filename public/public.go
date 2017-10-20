@@ -1,7 +1,6 @@
 package public
 
 import (
-	"jian/tcp/tools"
 	"net"
 	"os"
 	"strings"
@@ -68,11 +67,11 @@ func SendMsg(conn net.Conn, msgCode int, msg proto.Message) {
 		return
 	}
 
-	b, err := tools.PackToJSON(msgCode, []byte(protob))
+	b, err := PackToJSON(msgCode, []byte(protob))
 	if err != nil {
 		Log.Println("pack to json MInitDirectory failed")
 		return
 	}
 
-	tools.Write(conn, string(b))
+	Write(conn, string(b))
 }
