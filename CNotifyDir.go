@@ -1,9 +1,8 @@
-package client
+package syncdirectory
 
 import (
 	"os"
 	"strings"
-	p "syncdirectory/public"
 	"time"
 
 	"github.com/fsnotify"
@@ -22,7 +21,7 @@ func (t NotifyEvent) Changed() bool {
 		return true
 	}
 
-	if (fsnotify.Op(t.EventType)&fsnotify.Write == fsnotify.Write) && !p.IsDir(t.Name) {
+	if (fsnotify.Op(t.EventType)&fsnotify.Write == fsnotify.Write) && !IsDir(t.Name) {
 		return true
 	}
 
@@ -87,18 +86,13 @@ func (t NotifyEvent) TimeEqual(u NotifyEvent) bool {
 	return true
 }
 
-const (
-	ROOT     = "fsnotify_demo"
-	DIR_NAME = "E:\\fsnotify_demo"
-)
-
 var watcher *fsnotify.Watcher
 
 /*
 StartNotify start notify directory.
 */
 func StartNotify(eventChan chan NotifyEvent) {
-	p.Log.Println("Start notify directory:", DIR_NAME)
+	Log.Println("Start notify directory:", CRootPath)
 	raweventChan := make(chan fsnotify.Event)
 	duptimeeventChan := make(chan NotifyEvent)
 	dupeventChan := make(chan NotifyEvent)
@@ -113,37 +107,37 @@ func runFsnotify(rawevent chan fsnotify.Event) {
 	var err error
 	watcher, err = fsnotify.NewWatcher()
 	if err != nil {
-		p.Log.Println("fsnotify.NewWatcher failed", err.Error())
+		Log.Println("fsnotify.NewWatcher failed", err.Error())
 		return
 	}
 	defer watcher.Close()
 
-	browserDir(DIR_NAME)
+	browserDir(CRootPath)
 
 	done := make(chan bool)
 	go func() {
 		for {
 			select {
 			case event := <-watcher.Events:
-				//p.Log.Println("event:", event)
+				//Log.Println("event:", event)
 				if event.Op&fsnotify.Create == fsnotify.Create {
-					p.Log.Println("Create file:", event.Name)
+					Log.Println("Create file:", event.Name)
 				}
 				if event.Op&fsnotify.Write == fsnotify.Write {
-					p.Log.Println("Write file:", event.Name)
+					Log.Println("Write file:", event.Name)
 				}
 				if event.Op&fsnotify.Remove == fsnotify.Remove {
-					p.Log.Println("Remove file:", event.Name)
+					Log.Println("Remove file:", event.Name)
 				}
 				if event.Op&fsnotify.Rename == fsnotify.Rename {
-					p.Log.Println("Rename file:", event.Name)
+					Log.Println("Rename file:", event.Name)
 				}
 				if event.Op&fsnotify.Chmod == fsnotify.Chmod {
-					p.Log.Println("Chmod file:", event.Name)
+					Log.Println("Chmod file:", event.Name)
 				}
 				rawevent <- event
 			case err := <-watcher.Errors:
-				p.Log.Println("error:", err)
+				Log.Println("error:", err)
 			}
 		}
 	}()
@@ -195,7 +189,7 @@ func processDupEvent(dupeventChan chan NotifyEvent, eventChan chan NotifyEvent) 
 					continue
 				}
 			case <-to.C:
-				p.Log.Println("rename timeout")
+				Log.Println("rename timeout")
 				continue
 			}
 
@@ -209,7 +203,7 @@ func processDupEvent(dupeventChan chan NotifyEvent, eventChan chan NotifyEvent) 
 
 			dupevent.NewName = next.Name
 
-			if p.IsDir(dupevent.NewName) {
+			if IsDir(dupevent.NewName) {
 				watchRenameDir(dupevent.NewName)
 			}
 
@@ -230,38 +224,38 @@ rename ccc.txt -> ddd.txt
 因为重命名文件夹的时候，没有把旧的文件夹下的子文件，在内部的状态删除。
 */
 func watchRenameDir(path string) {
-	p.Log.Println("watchRenameDir:", path)
+	Log.Println("watchRenameDir:", path)
 	err := watcher.Add(path)
 	if err != nil {
-		p.Log.Println("watcher.Add failed", err.Error())
+		Log.Println("watcher.Add failed", err.Error())
 	}
 
 	err = watcher.Remove(path)
 	if err != nil {
-		p.Log.Println("watcher.Remove failed", err.Error())
+		Log.Println("watcher.Remove failed", err.Error())
 		return
 	}
 
 	err = watcher.Add(path)
 	if err != nil {
-		p.Log.Println("watcher.Add failed", err.Error())
+		Log.Println("watcher.Add failed", err.Error())
 		return
 	}
 
-	if !p.IsDir(path) {
+	if !IsDir(path) {
 		return
 	}
 
 	dir, err := os.Open(path)
 	if err != nil {
-		p.Log.Println("os.Open failed", err.Error())
+		Log.Println("os.Open failed", err.Error())
 		return
 	}
 	defer dir.Close()
 
 	names, err := dir.Readdirnames(-1)
 	if err != nil {
-		p.Log.Println("dir.Readdirnames failed", err.Error())
+		Log.Println("dir.Readdirnames failed", err.Error())
 		return
 	}
 
@@ -272,35 +266,35 @@ func watchRenameDir(path string) {
 }
 
 func watchDir(path string) {
-	p.Log.Println("watchDir:", path)
+	Log.Println("watchDir:", path)
 	err := watcher.Add(path)
 	if err != nil {
-		p.Log.Println("watcher.Add failed", err.Error())
+		Log.Println("watcher.Add failed", err.Error())
 		return
 	}
 }
 
 func reWatchDir(old string, new string) {
-	p.Log.Println("reWatchDir from", old, "to", new)
+	Log.Println("reWatchDir from", old, "to", new)
 	err := watcher.Remove(old)
 	if err != nil {
-		p.Log.Println("watcher.Remove failed", err.Error())
+		Log.Println("watcher.Remove failed", err.Error())
 		return
 	}
 
 	err = watcher.Add(new)
 	if err != nil {
-		p.Log.Println("watcher.Add failed", err.Error())
+		Log.Println("watcher.Add failed", err.Error())
 		return
 	}
 }
 
 func browserDir(path string) {
-	p.Log.Println("browserDir:", path)
+	Log.Println("browserDir:", path)
 
 	dir, err := os.Open(path)
 	if err != nil {
-		p.Log.Println("os.Open failed", err.Error())
+		Log.Println("os.Open failed", err.Error())
 		return
 	}
 	defer dir.Close()
@@ -309,13 +303,13 @@ func browserDir(path string) {
 
 	names, err := dir.Readdirnames(-1)
 	if err != nil {
-		p.Log.Println("dir.Readdirnames failed", err.Error())
+		Log.Println("dir.Readdirnames failed", err.Error())
 		return
 	}
 
 	for _, name := range names {
 		sub := path + "\\" + name
-		if !p.IsDir(sub) {
+		if !IsDir(sub) {
 			continue
 		}
 		browserDir(sub)
@@ -338,37 +332,37 @@ type SEventFile struct {
 func CreateEventFile(absoluteFileWithPath string) (*SEventFile, error) {
 	s := &SEventFile{}
 	s.AbsoluteFileWithPath = absoluteFileWithPath
-	s.AbsolutePath = p.GetFilePath(absoluteFileWithPath)
-	s.FileName = p.GetFileName(absoluteFileWithPath)
-	s.Root = ROOT
+	s.AbsolutePath = GetFilePath(absoluteFileWithPath)
+	s.FileName = GetFileName(absoluteFileWithPath)
+	s.Root = CRootName
 	s.RelativeFileWithPath = GetRelativePath(absoluteFileWithPath)
 	s.RelativePath = GetRelativePath(s.AbsolutePath)
-	s.FileSize = p.FileSize(absoluteFileWithPath)
+	s.FileSize = FileSize(absoluteFileWithPath)
 
-	exists, err := p.PathExists(absoluteFileWithPath)
+	exists, err := PathExists(absoluteFileWithPath)
 	if err != nil || !exists {
 		s.Exists = false
 	} else {
 		s.Exists = true
 	}
 
-	s.IsDir = p.IsDir(absoluteFileWithPath)
+	s.IsDir = IsDir(absoluteFileWithPath)
 
-	p.Log.Println(s)
+	Log.Println(s)
 
 	return s, nil
 }
 
 func GetRelativePath(absolutePath string) string {
-	if strings.HasPrefix(absolutePath, DIR_NAME) {
-		//p.Log.Println("has prefix")
-		if len(absolutePath) > len(DIR_NAME) {
-			return absolutePath[len(DIR_NAME)+1:]
-		} else if len(absolutePath) == len(DIR_NAME) {
+	if strings.HasPrefix(absolutePath, CRootPath) {
+		//Log.Println("has prefix")
+		if len(absolutePath) > len(CRootPath) {
+			return absolutePath[len(CRootPath)+1:]
+		} else if len(absolutePath) == len(CRootPath) {
 			return ""
 		}
 	} else {
-		//p.Log.Println("has not prefix")
+		//Log.Println("has not prefix")
 	}
 	return ""
 }

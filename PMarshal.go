@@ -1,4 +1,4 @@
-package public
+package syncdirectory
 
 import (
 	"bytes"
@@ -9,6 +9,8 @@ import (
 	"io"
 	"net"
 	"strings"
+
+	proto "github.com/golang/protobuf/proto"
 )
 
 /*
@@ -125,4 +127,20 @@ func Write(conn net.Conn, msg string) error {
 	}
 
 	return nil
+}
+
+func SendMsg(conn net.Conn, msgCode int, msg proto.Message) {
+	protob, err := proto.Marshal(msg)
+	if err != nil {
+		Log.Println("marshal MInitDirectory failed")
+		return
+	}
+
+	b, err := PackToJSON(msgCode, []byte(protob))
+	if err != nil {
+		Log.Println("pack to json MInitDirectory failed")
+		return
+	}
+
+	Write(conn, string(b))
 }

@@ -1,4 +1,4 @@
-package public
+package syncdirectory
 
 import (
 	"fmt"
@@ -6,8 +6,15 @@ import (
 	"os"
 )
 
+/*
+Log : global log to file.
+*/
 var Log *log.Logger
 
+/*
+InitLog : Init the global log.
+name : the absolute path of the file which used to store the log.
+*/
 func InitLog(name string) {
 	logfile, err := os.OpenFile(name, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
 	if err != nil {
@@ -24,5 +31,5 @@ func InitLog(name string) {
 	Log.Println("hello")
 	Log.Println("oh....")
 	Log.Printf("Log test end\n\n")
-	//Log.Fatal("test") //这个日志会直接让程序退出。
+	//Log.Fatal("test") //Fatal level log will exit the program.
 }
