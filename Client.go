@@ -3,7 +3,6 @@ package syncdirectory
 import (
 	"flag"
 	"fmt"
-	"io"
 	"net"
 	"os"
 
@@ -200,33 +199,5 @@ func pushNewDirectoryToServer(conn net.Conn, event NotifyEvent) {
 
 func pushFileToServer(conn net.Conn, file *SEventFile) {
 	Log.Println("pushFileToServer", file)
-
-	f, err := os.Open(file.AbsoluteFileWithPath)
-	if err != nil {
-		Log.Println("err opening file", file.AbsoluteFileWithPath)
-		return
-	}
-	defer f.Close()
-
-	msg := &MPushFile{}
-	msg.Root = proto.String(file.Root)
-	msg.FileName = proto.String(file.FileName)
-	msg.FileSize = proto.Int64(file.FileSize)
-	msg.FileDir = proto.String(file.RelativePath)
-	msg.RelativeFileWithPath = proto.String(file.RelativeFileWithPath)
-	SendMsg(conn, int(ESyncMsgCode_EPushFile), msg)
-
-	fileInfo, err := os.Lstat(file.AbsoluteFileWithPath)
-	if err != nil {
-		Log.Println("err Lstat")
-		return
-	}
-
-	if fileInfo.Size() > 0 {
-		written, err := io.CopyN(conn, f, fileInfo.Size())
-		if written != fileInfo.Size() || err != nil {
-			Log.Println("error copy")
-			return
-		}
-	}
+	PushFileSend(conn, file)
 }

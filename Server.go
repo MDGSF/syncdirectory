@@ -1,7 +1,6 @@
 package syncdirectory
 
 import (
-	"io"
 	"net"
 	"os"
 
@@ -37,7 +36,7 @@ func createStoreLocation() {
 	if exists, _ := PathExists(SStoreLocation); !exists {
 		if err := os.Mkdir(SStoreLocation, os.ModePerm); err != nil {
 			Log.Println("Mkdir failed", SStoreLocation)
-			return
+			os.Exit(1)
 		}
 	}
 }
@@ -129,40 +128,7 @@ func ProcessPushDirectory(conn net.Conn, data []byte) error {
 
 func ProcessPushFile(conn net.Conn, data []byte) error {
 	Log.Println("ProcessPushFile")
-
-	push := &MPushFile{}
-	err := proto.Unmarshal(data, push)
-	if err != nil {
-		Log.Println("Unmarshal MPushFile failed")
-		return err
-	}
-
-	Log.Println(push.GetRoot(), push.GetFileName(), push.GetFileSize(), push.GetFileDir())
-
-	path := SStoreLocation + string(os.PathSeparator) + push.GetRoot()
-	if len(push.GetFileDir()) != 0 {
-		path = path + string(os.PathSeparator) + push.GetFileDir()
-	}
-	fileWithPath := path + string(os.PathSeparator) + push.GetFileName()
-	Log.Println("New file path", fileWithPath)
-
-	if exists, _ := PathExists(path); !exists {
-		if err := os.Mkdir(path, os.ModePerm); err != nil {
-			Log.Println("Mkdir failed", path)
-			return err
-		}
-	}
-
-	f, err := os.OpenFile(fileWithPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.ModePerm)
-	if err != nil {
-		Log.Println(err)
-		return err
-	}
-	defer f.Close()
-
-	io.CopyN(f, conn, push.GetFileSize())
-
-	return nil
+	return PushFileRecv(conn, data, SStoreLocation)
 }
 
 func ProcessDeleteFile(conn net.Conn, data []byte) error {

@@ -1,5 +1,9 @@
 package syncdirectory
 
+import (
+	"os"
+)
+
 //Public constant.
 const (
 
@@ -16,11 +20,14 @@ const (
 //Client constant.
 const (
 
+	//Client store directory location.
+	CStoreLocation = "E:"
+
 	//Client root path name.
 	CRootName = "fsnotify_demo"
 
 	//Client root absolute path.
-	CRootPath = "E:\\fsnotify_demo"
+	CRootPath = CStoreLocation + string(os.PathSeparator) + CRootName
 )
 
 //Server constant.

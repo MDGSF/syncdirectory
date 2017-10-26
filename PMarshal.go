@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net"
 	"strings"
@@ -78,28 +77,28 @@ func Read(conn net.Conn) ([]byte, int, error) {
 	headerBuf := make([]byte, 4)
 	headerLen, err := conn.Read(headerBuf)
 	if err != nil || headerLen != 4 {
-		fmt.Println("read header failed:", err, headerLen)
+		Log.Println("read header failed:", err, headerLen)
 		return nil, 0, errors.New("read header failed")
 	}
 
 	bodyLen := BytesToInt(headerBuf)
-	fmt.Printf("read head success, body len:%d\n", bodyLen)
+	//Log.Printf("read head success, body len:%d\n", bodyLen)
 
 	//bodyBuf := make([]byte, bodyLen)
 	//readedbodyLen, err := conn.Read(bodyBuf)
 	//if err != nil || readedbodyLen != int(bodyLen) {
-	//	fmt.Println("read body failed:", err.Error(), readedbodyLen)
+	//	Log.Println("read body failed:", err.Error(), readedbodyLen)
 	//	return nil, 0, errors.New("read body failed")
 	//}
-	//fmt.Println("read body success,", readedbodyLen, bodyBuf)
+	//Log.Println("read body success,", readedbodyLen, bodyBuf)
 
 	bodyBuf := make([]byte, bodyLen)
 	readedbodyLen, err := io.ReadFull(conn, bodyBuf)
 	if err != nil || readedbodyLen != int(bodyLen) {
-		fmt.Println("read body failed:", err, readedbodyLen)
+		Log.Println("read body failed:", err, readedbodyLen)
 		return nil, 0, errors.New("read body failed")
 	}
-	fmt.Println("read body success,", readedbodyLen, bodyBuf)
+	//Log.Println("read body success,", readedbodyLen, bodyBuf)
 
 	return bodyBuf, bodyLen, nil
 }
@@ -111,24 +110,27 @@ func Write(conn net.Conn, msg string) error {
 
 	msgLen := strings.Count(msg, "") - 1
 
-	fmt.Println("Write", msgLen, IntToBytes(msgLen))
+	//Log.Println("Write", msgLen, IntToBytes(msgLen))
 	_, err := conn.Write(IntToBytes(msgLen))
 	if err != nil {
-		fmt.Println("Write header failed.", err)
+		Log.Println("Write header failed.", err)
 		return err
 	}
 
-	fmt.Println("Write", []byte(msg))
+	//Log.Println("Write", []byte(msg))
 
 	_, err = conn.Write([]byte(msg))
 	if err != nil {
-		fmt.Println("Write failed:", err)
+		Log.Println("Write failed:", err)
 		return err
 	}
 
 	return nil
 }
 
+/*
+SendMsg : send msg with msgCode.
+*/
 func SendMsg(conn net.Conn, msgCode int, msg proto.Message) {
 	protob, err := proto.Marshal(msg)
 	if err != nil {

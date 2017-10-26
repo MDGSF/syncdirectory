@@ -44,8 +44,7 @@ message MPushFile {
     optional string root = 1;
     optional string fileName = 2;
     optional int64 fileSize = 3; 
-    optional string fileDir = 4; /*The parent directory of the file.*/
-    optional string relativeFileWithPath = 5;
+    optional string RelativePath = 4; /*The parent directory of the file.*/
 }
 
 message MPullFile {
