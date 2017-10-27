@@ -1,6 +1,7 @@
 package syncdirectory
 
 import (
+	"errors"
 	"os"
 	"strings"
 )
@@ -63,4 +64,42 @@ func GetFileName(fileWithPath string) string {
 		return fileWithPath
 	}
 	return fileWithPath[i+1:]
+}
+
+type SEventFile struct {
+	StoreLocation string
+
+	AbsoluteFileWithPath string // E:\fsnotify_demo\aaa\test.txt
+	AbsolutePath         string // E:\fsnotify_demo\aaa
+	FileName             string // test.txt
+	Root                 string // fsnotify_demo
+	RelativeFileWithPath string // aaa\test.txt
+	RelativePath         string // aaa
+
+	FileSize int64 // size of file
+	IsDir    bool
+}
+
+func CreateEventFile(absoluteFileWithPath string) (*SEventFile, error) {
+
+	exists, err := PathExists(absoluteFileWithPath)
+	if err != nil || !exists {
+		return nil, errors.New("not exists")
+	}
+
+	s := &SEventFile{}
+
+	s.AbsoluteFileWithPath = absoluteFileWithPath
+	s.AbsolutePath = GetFilePath(absoluteFileWithPath)
+	s.FileName = GetFileName(absoluteFileWithPath)
+	s.Root = CRootName
+	s.RelativeFileWithPath = GetRelativePath(absoluteFileWithPath)
+	s.RelativePath = GetRelativePath(s.AbsolutePath)
+	s.FileSize = FileSize(absoluteFileWithPath)
+
+	s.IsDir = IsDir(absoluteFileWithPath)
+
+	Log.Println(s)
+
+	return s, nil
 }

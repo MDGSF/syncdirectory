@@ -316,43 +316,6 @@ func browserDir(path string) {
 	}
 }
 
-type SEventFile struct {
-	AbsoluteFileWithPath string // E:\fsnotify_demo\aaa\test.txt
-	AbsolutePath         string // E:\fsnotify_demo\aaa
-	FileName             string // test.txt
-	Root                 string // fsnotify_demo
-	RelativeFileWithPath string // aaa\test.txt
-	RelativePath         string // aaa
-
-	FileSize int64 // size of file
-	Exists   bool
-	IsDir    bool
-}
-
-func CreateEventFile(absoluteFileWithPath string) (*SEventFile, error) {
-	s := &SEventFile{}
-	s.AbsoluteFileWithPath = absoluteFileWithPath
-	s.AbsolutePath = GetFilePath(absoluteFileWithPath)
-	s.FileName = GetFileName(absoluteFileWithPath)
-	s.Root = CRootName
-	s.RelativeFileWithPath = GetRelativePath(absoluteFileWithPath)
-	s.RelativePath = GetRelativePath(s.AbsolutePath)
-	s.FileSize = FileSize(absoluteFileWithPath)
-
-	exists, err := PathExists(absoluteFileWithPath)
-	if err != nil || !exists {
-		s.Exists = false
-	} else {
-		s.Exists = true
-	}
-
-	s.IsDir = IsDir(absoluteFileWithPath)
-
-	Log.Println(s)
-
-	return s, nil
-}
-
 func GetRelativePath(absolutePath string) string {
 	if strings.HasPrefix(absolutePath, CRootPath) {
 		//Log.Println("has prefix")
