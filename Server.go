@@ -94,7 +94,7 @@ func ProcessInitDirectory(conn net.Conn, data []byte) error {
 	}
 
 	if err := os.Mkdir(newRoot, os.ModePerm); err != nil {
-		Log.Println("Mkdir failed", newRoot)
+		Log.Println("Mkdir failed", newRoot, err)
 		return err
 	}
 
@@ -201,6 +201,8 @@ func ProcessPullDirectoryRequest(conn net.Conn, data []byte) error {
 		//TODO send response to client: root is not exists.
 		return err
 	}
+
+	PushDirectory(conn, msg.GetRoot(), path)
 
 	return nil
 }

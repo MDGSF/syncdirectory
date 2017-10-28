@@ -2,7 +2,6 @@ package syncdirectory
 
 import (
 	"os"
-	"strings"
 	"time"
 
 	"github.com/fsnotify"
@@ -153,7 +152,7 @@ func processRawEvent(raweventChan chan fsnotify.Event, eventChan chan NotifyEven
 		event.Time = time.Now()
 
 		var err error
-		event.File, err = CreateEventFile(rawevent.Name)
+		event.File, err = CreateEventFile(rawevent.Name, CRootName)
 		if err != nil {
 			continue
 		}
@@ -314,18 +313,4 @@ func browserDir(path string) {
 		}
 		browserDir(sub)
 	}
-}
-
-func GetRelativePath(absolutePath string) string {
-	if strings.HasPrefix(absolutePath, CRootPath) {
-		//Log.Println("has prefix")
-		if len(absolutePath) > len(CRootPath) {
-			return absolutePath[len(CRootPath)+1:]
-		} else if len(absolutePath) == len(CRootPath) {
-			return ""
-		}
-	} else {
-		//Log.Println("has not prefix")
-	}
-	return ""
 }

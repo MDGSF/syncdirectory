@@ -8,25 +8,20 @@ import (
 	proto "github.com/golang/protobuf/proto"
 )
 
-func PushFileSend(conn net.Conn, file *SEventFile) error {
-	f, err := os.Open(file.AbsoluteFileWithPath)
+func PushFileSend(conn net.Conn, AbsoluteFileWithPath string, msg *MPushFile) error {
+	f, err := os.Open(AbsoluteFileWithPath)
 	if err != nil {
-		Log.Println("err opening file", file.AbsoluteFileWithPath)
+		Log.Println("err opening file", AbsoluteFileWithPath)
 		return err
 	}
 	defer f.Close()
 
-	fileInfo, err := os.Lstat(file.AbsoluteFileWithPath)
+	fileInfo, err := os.Lstat(AbsoluteFileWithPath)
 	if err != nil {
 		Log.Println("err Lstat")
 		return err
 	}
 
-	msg := &MPushFile{}
-	msg.Root = proto.String(file.Root)
-	msg.FileName = proto.String(file.FileName)
-	msg.FileSize = proto.Int64(file.FileSize)
-	msg.RelativePath = proto.String(file.RelativePath)
 	SendMsg(conn, int(ESyncMsgCode_EPushFile), msg)
 
 	if fileInfo.Size() > 0 {
@@ -74,4 +69,53 @@ func PushFileRecv(conn net.Conn, data []byte, StoreLocation string) error {
 	io.CopyN(f, conn, push.GetFileSize())
 
 	return nil
+}
+
+func PushDirectory(conn net.Conn, RootName string, path string) {
+	Log.Println("PushDirectory:", path)
+
+	dir, err := os.Open(path)
+	if err != nil {
+		Log.Println("os.Open failed", err.Error())
+		return
+	}
+	defer dir.Close()
+
+	msg := &MPushDirectory{}
+	msg.Root = proto.String(RootName)
+	msg.Dirname = proto.String(GetRelativePath(path, RootName))
+
+	names, err := dir.Readdirnames(-1)
+	if err != nil {
+		Log.Println("dir.Readdirnames failed", err.Error())
+		return
+	}
+
+	for _, name := range names {
+		sub := path + "\\" + name
+		if IsDir(sub) {
+			msg.Subdirname = append(msg.Subdirname, sub)
+		} else {
+			msg.Subfilename = append(msg.Subfilename, sub)
+		}
+	}
+
+	SendMsg(conn, int(ESyncMsgCode_EPushDirectory), msg)
+
+	for _, name := range names {
+		sub := path + "\\" + name
+		if IsDir(sub) {
+			PushDirectory(conn, RootName, sub)
+		} else {
+			file, _ := CreateEventFile(sub, RootName)
+
+			msg := &MPushFile{}
+			msg.Root = proto.String(RootName)
+			msg.FileName = proto.String(file.FileName)
+			msg.FileSize = proto.Int64(file.FileSize)
+			msg.RelativePath = proto.String(file.RelativePath)
+
+			PushFileSend(conn, file.AbsoluteFileWithPath, msg)
+		}
+	}
 }

@@ -80,7 +80,7 @@ type SEventFile struct {
 	IsDir    bool
 }
 
-func CreateEventFile(absoluteFileWithPath string) (*SEventFile, error) {
+func CreateEventFile(absoluteFileWithPath string, RootName string) (*SEventFile, error) {
 
 	exists, err := PathExists(absoluteFileWithPath)
 	if err != nil || !exists {
@@ -92,9 +92,9 @@ func CreateEventFile(absoluteFileWithPath string) (*SEventFile, error) {
 	s.AbsoluteFileWithPath = absoluteFileWithPath
 	s.AbsolutePath = GetFilePath(absoluteFileWithPath)
 	s.FileName = GetFileName(absoluteFileWithPath)
-	s.Root = CRootName
-	s.RelativeFileWithPath = GetRelativePath(absoluteFileWithPath)
-	s.RelativePath = GetRelativePath(s.AbsolutePath)
+	s.Root = RootName
+	s.RelativeFileWithPath = GetRelativePath(absoluteFileWithPath, RootName)
+	s.RelativePath = GetRelativePath(s.AbsolutePath, RootName)
 	s.FileSize = FileSize(absoluteFileWithPath)
 
 	s.IsDir = IsDir(absoluteFileWithPath)
@@ -102,4 +102,15 @@ func CreateEventFile(absoluteFileWithPath string) (*SEventFile, error) {
 	Log.Println(s)
 
 	return s, nil
+}
+
+func GetRelativePath(absolutePath string, RootName string) string {
+
+	i := strings.Index(absolutePath, RootName)
+	if i != -1 {
+		if len(absolutePath) > len(RootName) && (i+len(RootName)+1 < len(absolutePath)) {
+			return absolutePath[i+len(RootName)+1:]
+		}
+	}
+	return ""
 }

@@ -94,8 +94,8 @@ func notifyRenamed(event NotifyEvent) {
 	}
 	defer conn.Close()
 
-	old, _ := CreateEventFile(event.Name)
-	new, _ := CreateEventFile(event.NewName)
+	old, _ := CreateEventFile(event.Name, CRootName)
+	new, _ := CreateEventFile(event.NewName, CRootName)
 
 	msg := &MMoveFile{}
 	msg.Root = proto.String(CRootName)
@@ -118,7 +118,7 @@ func sendInitToServer() {
 	msg.Root = proto.String(CRootName)
 	SendMsg(conn, int(ESyncMsgCode_EInitDirectory), msg)
 
-	pushDirectory(conn, CRootPath)
+	PushDirectory(conn, CRootName, CRootPath)
 
 	Log.Printf("sendInitToServer success\n\n")
 }
@@ -136,48 +136,51 @@ func pullDirectoryFromServer() {
 	msg := &MPullDirectoryRequest{}
 	msg.Root = proto.String(CRootName)
 	SendMsg(conn, int(ESyncMsgCode_EPullDirectoryRequest), msg)
+
+	for {
+		msg, msgLen, err := Read(conn)
+		if err != nil {
+			Log.Println("Read failed.", err.Error())
+			return
+		}
+
+		msgtype, data, err := UnpackJSON(msg)
+		if err != nil {
+			Log.Println("UnpackJSON failed.", err.Error())
+			return
+		}
+		Log.Printf("UnpackJSON success, msgLen = %d, msgtype = %d\n", msgLen, msgtype)
+
+		switch msgtype {
+		case int(ESyncMsgCode_EPushDirectory):
+			processPushDirectoryFromServer(conn, data)
+		case int(ESyncMsgCode_EPushFile):
+			PushFileRecv(conn, data, CStoreLocation)
+		}
+	}
 }
 
-func pushDirectory(conn net.Conn, path string) {
-	Log.Println("pushDirectory:", path)
-
-	dir, err := os.Open(path)
-	if err != nil {
-		Log.Println("os.Open failed", err.Error())
-		return
-	}
-	defer dir.Close()
+func processPushDirectoryFromServer(conn net.Conn, data []byte) error {
+	Log.Println("processPushDirectoryFromServer")
 
 	msg := &MPushDirectory{}
-	msg.Root = proto.String(CRootName)
-	msg.Dirname = proto.String(GetRelativePath(path))
-
-	names, err := dir.Readdirnames(-1)
+	err := proto.Unmarshal(data, msg)
 	if err != nil {
-		Log.Println("dir.Readdirnames failed", err.Error())
-		return
+		Log.Println("Unmarshal MPushDirectory failed")
+		return err
 	}
 
-	for _, name := range names {
-		sub := path + "\\" + name
-		if IsDir(sub) {
-			msg.Subdirname = append(msg.Subdirname, sub)
-		} else {
-			msg.Subfilename = append(msg.Subfilename, sub)
+	Log.Println(msg.GetRoot(), msg.GetDirname(), msg.GetSubdirname(), msg.GetSubfilename())
+
+	path := CStoreLocation + string(os.PathSeparator) + msg.GetRoot() + string(os.PathSeparator) + msg.GetDirname()
+	if exists, _ := PathExists(path); !exists {
+		if err := os.Mkdir(path, os.ModePerm); err != nil {
+			Log.Println("Mkdir failed", path)
+			return err
 		}
 	}
 
-	SendMsg(conn, int(ESyncMsgCode_EPushDirectory), msg)
-
-	for _, name := range names {
-		sub := path + "\\" + name
-		if IsDir(sub) {
-			pushDirectory(conn, sub)
-		} else {
-			file, _ := CreateEventFile(sub)
-			pushFileToServer(conn, file)
-		}
-	}
+	return nil
 }
 
 func pushNewDirectoryToServer(conn net.Conn, event NotifyEvent) {
@@ -199,5 +202,12 @@ func pushNewDirectoryToServer(conn net.Conn, event NotifyEvent) {
 
 func pushFileToServer(conn net.Conn, file *SEventFile) {
 	Log.Println("pushFileToServer", file)
-	PushFileSend(conn, file)
+
+	msg := &MPushFile{}
+	msg.Root = proto.String(CRootName)
+	msg.FileName = proto.String(file.FileName)
+	msg.FileSize = proto.Int64(file.FileSize)
+	msg.RelativePath = proto.String(file.RelativePath)
+
+	PushFileSend(conn, file.AbsoluteFileWithPath, msg)
 }
